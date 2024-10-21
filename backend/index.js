@@ -1,15 +1,8 @@
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
+import express from "express";
+import cors from "cors";
+import "dotenv/config";
 
-const {
-  getPosts,
-  addPost,
-  addLikePost,
-  deletePost,
-} = require("./controller/pg");
-
-const index = path.join(__dirname, "../frontend/index.html");
+import { likeModel } from "./models/likeModel.js";
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -22,46 +15,85 @@ app.get("/", (req, res) => {
   res.sendFile(index);
 });
 
+// GET posts
 app.get("/posts", async (req, res) => {
-  const result = await getPosts()
-    .then((result) => {
-      res.status(result?.code ? 500 : 200).json(result);
-      console.log("appget");
-    })
-    .catch((error) => res.status(500).json(error));
+  try {
+    const posts = await likeModel.findAll();
+    return res.json(posts);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
+// GET /todos/:id
+app.get("/posts/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    const todo = await likeModel.findById(id);
+    if (!todo) {
+      res.status(404).json({ message: "Todo not found" });
+    }
+    res.json(todo);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// POST posts
 app.post("/posts", async (req, res) => {
-  const result = await addPost(req.body)
-    .then((result) => {
-      res.status(result?.code ? 500 : 200).json(result);
-      console.log("apppost ");
-    })
-    .catch((error) => res.status(500).json(error));
+  const { titulo, img, descripcion } = req.body;
+  if (!titulo || !img || !descripcion) {
+    return res
+      .status(400)
+      .json({ message: "titulo, img o descipcion is required" });
+  }
+  const newPost = {
+    titulo,
+    img,
+    descripcion,
+  };
+  try {
+    const post = await likeModel.create(newPost);
+    return res.json(post);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
+// PUT posts
 app.put("/posts/like/:id", async (req, res) => {
   const { id } = req.params;
-  const result = await addLikePost(id)
-    .then((result) => {
-      res.status(result?.code ? 500 : 200).json(result);
-      console.log("applik");
-    })
-    .catch((error) => res.status(500).json(error));
+  try {
+    const post = await likeModel.update(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    return res.json(post);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
+// DELETE posts
 app.delete("/posts/:id", async (req, res) => {
   const { id } = req.params;
-  console.log("id appdel --> ", id);
-  const result = await deletePost(id)
-    .then((result) => {
-      res.status(result?.code ? 500 : 200).json(result);
-      console.log("appdel");
-    })
-    .catch((error) => res.status(500).json(error));
+  
+  try {
+    const post = await likeModel.remove(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    return res.json({ message: "Post deleted" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
-app.listen(
-  PORT,
+app.listen(PORT, ()=>{
   console.log(`Servidor encendido en http://localhost:${PORT} `)
-);
+});
